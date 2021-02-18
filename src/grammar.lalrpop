@@ -93,7 +93,7 @@ Continue: Box<Ast> = {
 	"continue" <b:(r"[0-9]+")?> => Box::new(Ast::Continue{amount:match b {Some(x) => u32::from_str(x).unwrap(), _ => 1, } }),
 }
 Return: Box<Ast> = {
-	"return" <b:LimitedExpr> => Box::new(Ast::Return{returnee:b}),
+	"return" <b:Expr7> => Box::new(Ast::Return{returnee:b}),
 }
 
 Else: Box<Ast> = {

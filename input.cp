@@ -12,3 +12,4 @@ if x.p==3+5*7- -3; f(); else if x.x==3 {
 	x.x=4;
 	x.p=3;
 } else cout<<3;
+if {i==3} return i;
