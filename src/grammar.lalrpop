@@ -1,0 +1,239 @@
+use crate::ast::Ast;
+use std::str::FromStr;
+
+grammar;
+
+// utilities
+
+// list of any amount of comma separated rules
+CommaList0<Rule>: Vec<Rule> =
+<rules: (<Rule> ",")*> <last: Rule?> => {
+	let mut rules = rules;
+	rules.extend(last);
+	rules
+};
+// list of at least 1 comma separated rules
+CommaList1<Rule>: Vec<Rule> =
+<rules: (<Rule> ",")*> <last: Rule> (",")? => {
+	let mut rules = rules;
+	rules.push(last);
+	rules
+};
+
+// number
+NumLiteral: Box<Ast> = {
+	r"[0-9]+" => Box::new(Ast::NumLiteral(String::from(<>))),
+}
+Literal: Box<Ast> = {
+	NumLiteral => <>,
+}
+
+// variable or function names
+Id: Box<Ast> = {
+	r"[A-Za-su-z_][A-Za-z0-9_]*" => Box::new(Ast::Id(String::from(<>))),
+}
+// type names
+TypId: Box<Ast> = {
+	r"t[a-zA-Z0-9_]*" => Box::new(Ast::Id(String::from(<>))),
+}
+// any name
+TypIdOrId: Box<Ast> = {
+	TypId => <>,
+	Id => <>,
+}
+
+// template struct declaration
+TempTyp: Box<Ast> = {
+	<a:TypId> "!" "(" <t:CommaList0<Expr>> ")" => Box::new(Ast::Template{args:t,body:a}),
+}
+// array declaration
+Array: Box<Ast> = {
+	<a:Typ> "[" <b:Expr> "]" => Box::new(Ast::Array{typ:a,size:b}),
+}
+// pointer declaration
+Pointer: Box<Ast> = {
+	<a:Typ> "*" => Box::new(Ast::Pointer{typ:a}),
+}
+// types
+Typ: Box<Ast> = {
+	TypId => <>,
+	TempTyp => <>,
+	Pointer => <>,
+	Array => <>,
+}
+
+// function definition
+FunArgsEl: Box<Ast> = {
+	<a:Typ> <b:Id> => Box::new(Ast::FunArgsEl{typ:a,name:b}),
+}
+Fun: Box<Ast> = {
+	"fn" <n:Id> "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Fun{name:n,args:a,typ:t,body:b}),
+	"fn" <n:Id> "!" "(" <template:CommaList1<TypIdOrId>> ")" "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Template{args:template,body:Box::new(Ast::Fun{name:n,args:a,typ:t,body:b})}),
+}
+
+// structure definition
+StructDefEl: Box<Ast> = {
+	<a:Typ> <b:Id?> => Box::new(Ast::StructDefEl{typ:a,name:b}),
+}
+StructDef: Box<Ast> = {
+	"struct" <n:TypId> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::StructDef{name:n,els:e}),
+	"struct" <n:TypId> "!" "(" <t:CommaList1<TypIdOrId>> ")" "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Template{args:t,body:Box::new(Ast::StructDef{name:n,els:e})}),
+}
+
+// variable declaration, simplified for now bc of commas
+VariableDeclaration: Box<Ast> = {
+	<a:Typ> <b:Id> => Box::new(Ast::VariableDeclaration{typ:a,vars:vec![Box::new(Ast::Vde{lhs:b,rhs:None})]}),
+}
+
+// control flow stuff
+Break: Box<Ast> = {
+	"break" <b:(r"[0-9]+")?> => Box::new(Ast::Break{amount:match b {Some(x) => u32::from_str(x).unwrap(), _ => 1, } }),
+}
+Continue: Box<Ast> = {
+	"continue" <b:(r"[0-9]+")?> => Box::new(Ast::Continue{amount:match b {Some(x) => u32::from_str(x).unwrap(), _ => 1, } }),
+}
+Return: Box<Ast> = {
+	"return" <b:LimitedExpr> => Box::new(Ast::Return{returnee:b}),
+}
+
+Else: Box<Ast> = {
+	"else" <b:LimitedExpr> => b,
+}
+If: Box<Ast> = {
+	"if" <a:LimitedExpr> <b:LimitedExpr> <e:(Else)?> => Box::new(Ast::If{cond:a,then:b,els:e}),
+	"if" <a:Expr7> <b:BraceExpr> <e:(Else)?> => Box::new(Ast::If{cond:a,then:b,els:e}),
+}
+While: Box<Ast> = {
+	"while" <a:LimitedExpr> <b:LimitedExpr> => Box::new(Ast::While{cond:a,then:b}),
+	"while" <a:Expr7> <b:BraceExpr> => Box::new(Ast::While{cond:a,then:b}),
+}
+
+// expressions numbered based on priority
+Expr20: Box<Ast> = {
+	Id => <>,
+	Literal => <>,
+	ParenExpr => <>,
+}
+Expr19: Box<Ast> = {
+	Expr20 => <>,
+	<a:Expr19> "." <b:Expr20> => Box::new(Ast::Access{lhs:a,rhs:b}),
+	<a:Expr19> <b:BracketExpr> => Box::new(Ast::Index{lhs:a,rhs:b}),
+	<a:Expr19> "(" <b:CommaList0<Expr> > ")" => Box::new(Ast::Call{lhs:a,args:b}),
+	<a:Expr19> "++" => Box::new(Ast::RightPlusPlus{lhs:a}),
+	<a:Expr19> "--" => Box::new(Ast::RightMinusMinus{lhs:a}),
+}
+Expr18: Box<Ast> = {
+	Expr19 => <>,
+	"+" <a:Expr18> => a,
+	"-" <a:Expr18> => Box::new(Ast::Neg{rhs:a}),
+	"!" <a:Expr18> => Box::new(Ast::Lnot{rhs:a}),
+	"~" <a:Expr18> => Box::new(Ast::Bnot{rhs:a}),
+	"&" <a:Expr18> => Box::new(Ast::Ref{rhs:a}),
+	"*" <a:Expr18> => Box::new(Ast::Deref{rhs:a}),
+}
+Expr17: Box<Ast> = {
+	Expr18 => <>,
+	<a:Expr17> "*" <b:Expr18> => Box::new(Ast::Mul{lhs:a,rhs:b}),
+	<a:Expr17> "/" <b:Expr18> => Box::new(Ast::Div{lhs:a,rhs:b}),
+	<a:Expr17> "%" <b:Expr18> => Box::new(Ast::Mod{lhs:a,rhs:b}),
+}
+Expr16: Box<Ast> = {
+	Expr17 => <>,
+	<a:Expr16> "+" <b:Expr17> => Box::new(Ast::Add{lhs:a,rhs:b}),
+	<a:Expr16> "-" <b:Expr17> => Box::new(Ast::Sub{lhs:a,rhs:b}),
+}
+Expr15: Box<Ast> = {
+	Expr16 => <>,
+	<a:Expr15> ">>" <b:Expr16> => Box::new(Ast::Rhs{lhs:a,rhs:b}),
+	<a:Expr15> "<<" <b:Expr16> => Box::new(Ast::Lhs{lhs:a,rhs:b}),
+}
+Expr14: Box<Ast> = {
+	Expr15 => <>,
+	<a:Expr14> "<" <b:Expr15> => Box::new(Ast::Less{lhs:a,rhs:b}),
+	<a:Expr14> "<=" <b:Expr15> => Box::new(Ast::LessEqual{lhs:a,rhs:b}),
+	<a:Expr14> ">" <b:Expr15> => Box::new(Ast::Less{lhs:b,rhs:a}),
+	<a:Expr14> ">=" <b:Expr15> => Box::new(Ast::LessEqual{lhs:b,rhs:a}),
+}
+Expr13: Box<Ast> = {
+	Expr14 => <>,
+	<a:Expr13> "==" <b:Expr14> => Box::new(Ast::Equal{lhs:a,rhs:b}),
+	<a:Expr13> "!=" <b:Expr14> => Box::new(Ast::Nequal{lhs:a,rhs:b}),
+}
+Expr12: Box<Ast> = {
+	Expr13 => <>,
+	<a:Expr12> "&" <b:Expr13> => Box::new(Ast::Band{lhs:a,rhs:b}),
+}
+Expr11: Box<Ast> = {
+	Expr12 => <>,
+	<a:Expr11> "^" <b:Expr12> => Box::new(Ast::Bxor{lhs:a,rhs:b}),
+}
+Expr10: Box<Ast> = {
+	Expr11 => <>,
+	<a:Expr10> "|" <b:Expr11> => Box::new(Ast::Bor{lhs:a,rhs:b}),
+}
+Expr9: Box<Ast> = {
+	Expr10 => <>,
+	<a:Expr9> "&&" <b:Expr10> => Box::new(Ast::Land{lhs:a,rhs:b}),
+}
+Expr8: Box<Ast> = {
+	Expr9 => <>,
+	<a:Expr8> "||" <b:Expr9> => Box::new(Ast::Lor{lhs:a,rhs:b}),
+}
+Expr7: Box<Ast> = {
+	Expr8 => <>,
+	<a:Expr8> "=" <b:Expr7> => Box::new(Ast::Assign{lhs:a,rhs:b}),
+	<a:Expr8> "+=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Add{lhs:a,rhs:b})}),
+	<a:Expr8> "-=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Sub{lhs:a,rhs:b})}),
+	<a:Expr8> "*=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Mul{lhs:a,rhs:b})}),
+	<a:Expr8> "/=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Div{lhs:a,rhs:b})}),
+	<a:Expr8> "%=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Mod{lhs:a,rhs:b})}),
+	<a:Expr8> "<<=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Lhs{lhs:a,rhs:b})}),
+	<a:Expr8> ">>=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Rhs{lhs:a,rhs:b})}),
+	<a:Expr8> "&=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Band{lhs:a,rhs:b})}),
+	<a:Expr8> "^=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Bxor{lhs:a,rhs:b})}),
+	<a:Expr8> "|=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Bor{lhs:a,rhs:b})}),
+}
+
+// ()
+ParenExpr: Box<Ast> = {
+	"(" <a:Expr> ")" => a,
+}
+// []
+BracketExpr: Box<Ast> = {
+	"[" <a:Expr> "]" => a,
+}
+// {}
+BraceExpr: Box<Ast> = {
+	"{" <a:Expr> "}" => a,
+}
+
+// the expressions after which;
+ColonedExpr: Box<Ast> = {
+	<a:Expr7> ";" => a,
+	<a:VariableDeclaration> ";" => a,
+	<a:Break> ";" => a,
+	<a:Continue> ";" => a,
+	<a:Return> ";" => a,
+}
+
+// Expression which you can easily find an end to
+LimitedExpr: Box<Ast> = {
+	ColonedExpr => <>,
+	BraceExpr => <>,
+	While => <>,
+	Fun => <>,
+	StructDef => <>,
+}
+
+// Lines that make up the program
+Line: Box<Ast> = {
+	LimitedExpr => <>,
+	If => <>,
+}
+
+// Program is an Expr
+pub Expr: Box<Ast> = {
+	<a:(Line)*> <b:Expr7> => Box::new(Ast::Expr{body:a, ret:Some(b)}),
+	<a:(Line)+> => Box::new(Ast::Expr{body:a, ret:None}),
+}
+
