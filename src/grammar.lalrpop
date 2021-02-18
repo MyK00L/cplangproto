@@ -100,7 +100,7 @@ Else: Box<Ast> = {
 	"else" <b:LimitedExpr> => b,
 }
 If: Box<Ast> = {
-	"if" <a:LimitedExpr> <b:LimitedExpr> <e:(Else)?> => Box::new(Ast::If{cond:a,then:b,els:e}),
+	"if" <a:LimitedExprNoIf> <b:LimitedExprNoIf> <e:(Else)?> => Box::new(Ast::If{cond:a,then:b,els:e}),
 	"if" <a:Expr7> <b:BraceExpr> <e:(Else)?> => Box::new(Ast::If{cond:a,then:b,els:e}),
 }
 While: Box<Ast> = {
@@ -216,11 +216,18 @@ ColonedExpr: Box<Ast> = {
 	<a:Return> ";" => a,
 }
 
+// limited exprs subset for if (so that else is not ambiguous)
+LimitedExprNoIf: Box<Ast> = {
+	ColonedExpr => <>,
+	BraceExpr => <>,
+}
+
 // Expression which you can easily find an end to
 LimitedExpr: Box<Ast> = {
 	ColonedExpr => <>,
 	BraceExpr => <>,
 	While => <>,
+	If => <>,
 	Fun => <>,
 	StructDef => <>,
 }
@@ -228,7 +235,6 @@ LimitedExpr: Box<Ast> = {
 // Lines that make up the program
 Line: Box<Ast> = {
 	LimitedExpr => <>,
-	If => <>,
 }
 
 // Program is an Expr
