@@ -1,5 +1,4 @@
 use crate::ast::Ast;
-use std::str::FromStr;
 
 grammar;
 
@@ -73,24 +72,24 @@ Fun: Box<Ast> = {
 
 // structure definition
 StructDefEl: Box<Ast> = {
-	<a:Typ> <b:Id?> => Box::new(Ast::StructDefEl{typ:a,name:b}),
+	<a:Typ> <b:Id?> => Box::new(Ast::StructEl{typ:a,name:b}),
 }
 StructDef: Box<Ast> = {
-	"struct" <n:TypId> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::StructDef{name:n,els:e}),
-	"struct" <n:TypId> "!" "(" <t:CommaList1<TypIdOrId>> ")" "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Template{args:t,body:Box::new(Ast::StructDef{name:n,els:e})}),
+	"struct" <n:TypId> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Struct{name:n,els:e}),
+	"struct" <n:TypId> "!" "(" <t:CommaList1<TypIdOrId>> ")" "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Template{args:t,body:Box::new(Ast::Struct{name:n,els:e})}),
 }
 
 // variable declaration, simplified for now bc of commas
 VariableDeclaration: Box<Ast> = {
-	<a:Typ> <b:Id> => Box::new(Ast::VariableDeclaration{typ:a,vars:vec![Box::new(Ast::Vde{lhs:b,rhs:None})]}),
+	<a:Typ> <b:Id> => Box::new(Ast::Var{typ:a,name:b}),
 }
 
 // control flow stuff
 Break: Box<Ast> = {
-	"break" <b:(r"[0-9]+")?> => Box::new(Ast::Break{amount:match b {Some(x) => u32::from_str(x).unwrap(), _ => 1, } }),
+	"break" <b:(NumLiteral)?> => Box::new(Ast::Break{amount:match b {Some(x) => x, _ => Box::new(Ast::NumLiteral(String::from("1"))), } }),
 }
 Continue: Box<Ast> = {
-	"continue" <b:(r"[0-9]+")?> => Box::new(Ast::Continue{amount:match b {Some(x) => u32::from_str(x).unwrap(), _ => 1, } }),
+	"continue" <b:(NumLiteral)?> => Box::new(Ast::Continue{amount:match b {Some(x) => x, _ => Box::new(Ast::NumLiteral(String::from("1"))), } }),
 }
 Return: Box<Ast> = {
 	"return" <b:Expr7> => Box::new(Ast::Return{returnee:b}),
@@ -117,81 +116,81 @@ Expr20: Box<Ast> = {
 Expr19: Box<Ast> = {
 	Expr20 => <>,
 	<a:Expr19> "." <b:Expr20> => Box::new(Ast::Access{lhs:a,rhs:b}),
-	<a:Expr19> <b:BracketExpr> => Box::new(Ast::Index{lhs:a,rhs:b}),
 	<a:Expr19> "(" <b:CommaList0<Expr> > ")" => Box::new(Ast::Call{lhs:a,args:b}),
-	<a:Expr19> "++" => Box::new(Ast::RightPlusPlus{lhs:a}),
-	<a:Expr19> "--" => Box::new(Ast::RightMinusMinus{lhs:a}),
+	<a:Expr19> <b:BracketExpr> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("at"))),args:vec![a,b]}),
+	<a:Expr19> "++" => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("inc"))),args:vec![a]}),
+	<a:Expr19> "--" => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("dec"))),args:vec![a]}),
 }
 Expr18: Box<Ast> = {
 	Expr19 => <>,
 	"+" <a:Expr18> => a,
-	"-" <a:Expr18> => Box::new(Ast::Neg{rhs:a}),
-	"!" <a:Expr18> => Box::new(Ast::Lnot{rhs:a}),
-	"~" <a:Expr18> => Box::new(Ast::Bnot{rhs:a}),
-	"&" <a:Expr18> => Box::new(Ast::Ref{rhs:a}),
-	"*" <a:Expr18> => Box::new(Ast::Deref{rhs:a}),
+	"-" <a:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("neg"))),args:vec![a]}),
+	"!" <a:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("not"))),args:vec![a]}),
+	"~" <a:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("bnot"))),args:vec![a]}),
+	"&" <a:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("ref"))),args:vec![a]}),
+	"*" <a:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("deref"))),args:vec![a]}),
 }
 Expr17: Box<Ast> = {
 	Expr18 => <>,
-	<a:Expr17> "*" <b:Expr18> => Box::new(Ast::Mul{lhs:a,rhs:b}),
-	<a:Expr17> "/" <b:Expr18> => Box::new(Ast::Div{lhs:a,rhs:b}),
-	<a:Expr17> "%" <b:Expr18> => Box::new(Ast::Mod{lhs:a,rhs:b}),
+	<a:Expr17> "*" <b:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("mul"))),args:vec![a,b]}),
+	<a:Expr17> "/" <b:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("div"))),args:vec![a,b]}),
+	<a:Expr17> "%" <b:Expr18> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("mod"))),args:vec![a,b]}),
 }
 Expr16: Box<Ast> = {
 	Expr17 => <>,
-	<a:Expr16> "+" <b:Expr17> => Box::new(Ast::Add{lhs:a,rhs:b}),
-	<a:Expr16> "-" <b:Expr17> => Box::new(Ast::Sub{lhs:a,rhs:b}),
+	<a:Expr16> "+" <b:Expr17> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("add"))),args:vec![a,b]}),
+	<a:Expr16> "-" <b:Expr17> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("sub"))),args:vec![a,b]}),
 }
 Expr15: Box<Ast> = {
 	Expr16 => <>,
-	<a:Expr15> ">>" <b:Expr16> => Box::new(Ast::Rhs{lhs:a,rhs:b}),
-	<a:Expr15> "<<" <b:Expr16> => Box::new(Ast::Lhs{lhs:a,rhs:b}),
+	<a:Expr15> ">>" <b:Expr16> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("rhs"))),args:vec![a,b]}),
+	<a:Expr15> "<<" <b:Expr16> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("lhs"))),args:vec![a,b]}),
 }
 Expr14: Box<Ast> = {
 	Expr15 => <>,
-	<a:Expr14> "<" <b:Expr15> => Box::new(Ast::Less{lhs:a,rhs:b}),
-	<a:Expr14> "<=" <b:Expr15> => Box::new(Ast::LessEqual{lhs:a,rhs:b}),
-	<a:Expr14> ">" <b:Expr15> => Box::new(Ast::Less{lhs:b,rhs:a}),
-	<a:Expr14> ">=" <b:Expr15> => Box::new(Ast::LessEqual{lhs:b,rhs:a}),
+	<a:Expr14> "<" <b:Expr15> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("less"))),args:vec![a,b]}),
+	<a:Expr14> "<=" <b:Expr15> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("less_equal"))),args:vec![a,b]}),
+	<a:Expr14> ">" <b:Expr15> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("less"))),args:vec![b,a]}),
+	<a:Expr14> ">=" <b:Expr15> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("less_equal"))),args:vec![b,a]}),
 }
 Expr13: Box<Ast> = {
 	Expr14 => <>,
-	<a:Expr13> "==" <b:Expr14> => Box::new(Ast::Equal{lhs:a,rhs:b}),
-	<a:Expr13> "!=" <b:Expr14> => Box::new(Ast::Nequal{lhs:a,rhs:b}),
+	<a:Expr13> "==" <b:Expr14> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("equal"))),args:vec![a,b]}),
+	<a:Expr13> "!=" <b:Expr14> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("nequal"))),args:vec![a,b]}),
 }
 Expr12: Box<Ast> = {
 	Expr13 => <>,
-	<a:Expr12> "&" <b:Expr13> => Box::new(Ast::Band{lhs:a,rhs:b}),
+	<a:Expr12> "&" <b:Expr13> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("band"))),args:vec![a,b]}),
 }
 Expr11: Box<Ast> = {
 	Expr12 => <>,
-	<a:Expr11> "^" <b:Expr12> => Box::new(Ast::Bxor{lhs:a,rhs:b}),
+	<a:Expr11> "^" <b:Expr12> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("bxor"))),args:vec![a,b]}),
 }
 Expr10: Box<Ast> = {
 	Expr11 => <>,
-	<a:Expr10> "|" <b:Expr11> => Box::new(Ast::Bor{lhs:a,rhs:b}),
+	<a:Expr10> "|" <b:Expr11> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("bor"))),args:vec![a,b]}),
 }
 Expr9: Box<Ast> = {
 	Expr10 => <>,
-	<a:Expr9> "&&" <b:Expr10> => Box::new(Ast::Land{lhs:a,rhs:b}),
+	<a:Expr9> "&&" <b:Expr10> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("and"))),args:vec![a,b]}),
 }
 Expr8: Box<Ast> = {
 	Expr9 => <>,
-	<a:Expr8> "||" <b:Expr9> => Box::new(Ast::Lor{lhs:a,rhs:b}),
+	<a:Expr8> "||" <b:Expr9> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("or"))),args:vec![a,b]}),
 }
 Expr7: Box<Ast> = {
 	Expr8 => <>,
-	<a:Expr8> "=" <b:Expr7> => Box::new(Ast::Assign{lhs:a,rhs:b}),
-	<a:Expr8> "+=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Add{lhs:a,rhs:b})}),
-	<a:Expr8> "-=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Sub{lhs:a,rhs:b})}),
-	<a:Expr8> "*=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Mul{lhs:a,rhs:b})}),
-	<a:Expr8> "/=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Div{lhs:a,rhs:b})}),
-	<a:Expr8> "%=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Mod{lhs:a,rhs:b})}),
-	<a:Expr8> "<<=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Lhs{lhs:a,rhs:b})}),
-	<a:Expr8> ">>=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Rhs{lhs:a,rhs:b})}),
-	<a:Expr8> "&=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Band{lhs:a,rhs:b})}),
-	<a:Expr8> "^=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Bxor{lhs:a,rhs:b})}),
-	<a:Expr8> "|=" <b:Expr7> => Box::new(Ast::Assign{lhs:a.clone(),rhs:Box::new(Ast::Bor{lhs:a,rhs:b})}),
+	<a:Expr8> "=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a,b]}),
+	<a:Expr8> "+=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("add"))),args:vec![a,b]})]}),
+	<a:Expr8> "-=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("sub"))),args:vec![a,b]})]}),
+	<a:Expr8> "*=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("mul"))),args:vec![a,b]})]}),
+	<a:Expr8> "/=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("div"))),args:vec![a,b]})]}),
+	<a:Expr8> "%=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("mod"))),args:vec![a,b]})]}),
+	<a:Expr8> "<<=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("lhs"))),args:vec![a,b]})]}),
+	<a:Expr8> ">>=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("rhs"))),args:vec![a,b]})]}),
+	<a:Expr8> "&=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("band"))),args:vec![a,b]})]}),
+	<a:Expr8> "^=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("bxor"))),args:vec![a,b]})]}),
+	<a:Expr8> "|=" <b:Expr7> => Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("assign"))),args:vec![a.clone(),Box::new(Ast::Call{lhs:Box::new(Ast::Id(String::from("bor"))),args:vec![a,b]})]}),
 }
 
 // ()
