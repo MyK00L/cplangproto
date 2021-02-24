@@ -19,7 +19,7 @@ pub enum Ast {
 		then: Box<Ast>,
 		els: Option<Box<Ast>>,
 	},
-	While {
+	DoWhile {
 		cond: Box<Ast>,
 		then: Box<Ast>,
 	},

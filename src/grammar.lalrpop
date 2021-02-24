@@ -103,8 +103,8 @@ If: Box<Ast> = {
 	"if" <a:Expr7> <b:BraceExpr> <e:(Else)?> => Box::new(Ast::If{cond:a,then:b,els:e}),
 }
 While: Box<Ast> = {
-	"while" <a:LimitedExpr> <b:LimitedExpr> => Box::new(Ast::While{cond:a,then:b}),
-	"while" <a:Expr7> <b:BraceExpr> => Box::new(Ast::While{cond:a,then:b}),
+	"while" <a:LimitedExpr> <b:LimitedExpr> => Box::new(Ast::If{cond:a.clone(),then:Box::new(Ast::DoWhile{cond:a,then:b}),els:None}),
+	"while" <a:Expr7> <b:BraceExpr> => Box::new(Ast::If{cond:a.clone(),then:Box::new(Ast::DoWhile{cond:a,then:b}),els:None}),
 }
 
 // expressions numbered based on priority
