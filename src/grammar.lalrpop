@@ -27,35 +27,26 @@ Literal: Box<Ast> = {
 	NumLiteral => <>,
 }
 
-// variable or function names
+// variable or function or type names
 Id: Box<Ast> = {
-	r"[A-Za-su-z_][A-Za-z0-9_]*" => Box::new(Ast::Id(String::from(<>))),
-}
-// type names
-TypId: Box<Ast> = {
-	r"t[a-zA-Z0-9_]*" => Box::new(Ast::Id(String::from(<>))),
-}
-// any name
-TypIdOrId: Box<Ast> = {
-	TypId => <>,
-	Id => <>,
+	r"[A-Za-z_][A-Za-z0-9_]*" => Box::new(Ast::Id(String::from(<>))),
 }
 
 // template struct declaration
 TempTyp: Box<Ast> = {
-	<a:TypId> "!" "(" <t:CommaList0<Expr>> ")" => Box::new(Ast::Template{args:t,body:a}),
+	<a:Id> "!" "(" <t:CommaList0<Expr>> ")" => Box::new(Ast::Template{args:t,body:a}),
 }
-// array declaration
+// array (cant have same syntax as indexing)
 Array: Box<Ast> = {
-	<a:Typ> "[" <b:Expr> "]" => Box::new(Ast::Array{typ:a,size:b}),
+	"[" <a:Typ> ";" <b:Expr> "]" => Box::new(Ast::Array{typ:a,size:b}),
 }
-// pointer declaration
+// pointer
 Pointer: Box<Ast> = {
-	<a:Typ> "*" => Box::new(Ast::Pointer{typ:a}),
+	<a:Typ> "ptr" => Box::new(Ast::Pointer{typ:a}),
 }
 // types
 Typ: Box<Ast> = {
-	TypId => <>,
+	Id => <>,
 	TempTyp => <>,
 	Pointer => <>,
 	Array => <>,
@@ -67,7 +58,7 @@ FunArgsEl: Box<Ast> = {
 }
 Fun: Box<Ast> = {
 	"fn" <n:Id> "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Fun{name:n,args:a,typ:t,body:b}),
-	"fn" <n:Id> "!" "(" <template:CommaList1<TypIdOrId>> ")" "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Template{args:template,body:Box::new(Ast::Fun{name:n,args:a,typ:t,body:b})}),
+	"fn" <n:Id> "!" "(" <template:CommaList1<Id>> ")" "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Template{args:template,body:Box::new(Ast::Fun{name:n,args:a,typ:t,body:b})}),
 }
 
 // structure definition
@@ -75,8 +66,8 @@ StructDefEl: Box<Ast> = {
 	<a:Typ> <b:Id?> => Box::new(Ast::StructEl{typ:a,name:b}),
 }
 StructDef: Box<Ast> = {
-	"struct" <n:TypId> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Struct{name:n,els:e}),
-	"struct" <n:TypId> "!" "(" <t:CommaList1<TypIdOrId>> ")" "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Template{args:t,body:Box::new(Ast::Struct{name:n,els:e})}),
+	"struct" <n:Id> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Struct{name:n,els:e}),
+	"struct" <n:Id> "!" "(" <t:CommaList1<Id>> ")" "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Template{args:t,body:Box::new(Ast::Struct{name:n,els:e})}),
 }
 
 // variable declaration, simplified for now bc of commas
