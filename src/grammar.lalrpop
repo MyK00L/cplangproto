@@ -2,6 +2,14 @@ use crate::ast::Ast;
 
 grammar;
 
+// skip comments
+match {
+	r"\s*" => { }, // whitespace
+	r"//[^\n\r]*[\n\r]*" => { }, // `// comments`
+	r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // `/* comments */`
+	_
+}
+
 // utilities
 
 // list of any amount of comma separated rules
@@ -58,7 +66,7 @@ FunArgsEl: Box<Ast> = {
 }
 Fun: Box<Ast> = {
 	"fn" <n:Id> "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Fun{name:n,args:a,typ:t,body:b}),
-	"fn" <n:Id> "!" "(" <template:CommaList1<Id>> ")" "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Template{args:template,body:Box::new(Ast::Fun{name:n,args:a,typ:t,body:b})}),
+	"fn" "!" "(" <template:CommaList1<Id>> ")" <n:Id> "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Template{args:template,body:Box::new(Ast::Fun{name:n,args:a,typ:t,body:b})}),
 }
 
 // structure definition
@@ -67,7 +75,7 @@ StructDefEl: Box<Ast> = {
 }
 StructDef: Box<Ast> = {
 	"struct" <n:Id> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Struct{name:n,els:e}),
-	"struct" <n:Id> "!" "(" <t:CommaList1<Id>> ")" "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Template{args:t,body:Box::new(Ast::Struct{name:n,els:e})}),
+	"struct" "!" "(" <t:CommaList1<Id>> ")" <n:Id> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Template{args:t,body:Box::new(Ast::Struct{name:n,els:e})}),
 }
 
 // variable declaration, simplified for now bc of commas
