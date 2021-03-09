@@ -52,10 +52,15 @@ Array: Box<Ast> = {
 Pointer: Box<Ast> = {
 	<a:Typ> "ptr" => Box::new(Ast::Pointer{typ:a}),
 }
+// reference
+Reference: Box<Ast> = {
+	<a:Typ> "ref" => Box::new(Ast::Reference{typ:a}),
+}
 // types
 Typ: Box<Ast> = {
 	Id => <>,
 	TempTyp => <>,
+	Reference => <>,
 	Pointer => <>,
 	Array => <>,
 }

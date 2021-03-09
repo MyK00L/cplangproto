@@ -47,6 +47,9 @@ pub enum Ast {
 	Pointer {
 		typ: Box<Ast>,
 	},
+	Reference {
+		typ: Box<Ast>,
+	},
 	TypDec {
 		id: Box<Ast>,
 		typ: Box<Ast>,
