@@ -36,6 +36,7 @@ pair!(int,int) a;
 // access struct members by name or position
 p.x=42;
 a.0=42;
+s = "42\n";
 
 // if statements
 if x*x>2 {
@@ -60,4 +61,3 @@ while x-- {
 	continue 42; // break 41 loop and continue
 }
 while {x--} {print(x);}
-

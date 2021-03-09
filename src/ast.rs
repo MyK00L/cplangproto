@@ -2,6 +2,7 @@
 pub enum Ast {
 	Id(String),
 	NumLiteral(String),
+	StringLiteral(String),
 
 	// operations
 	Access {

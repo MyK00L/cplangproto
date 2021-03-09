@@ -31,8 +31,12 @@ CommaList1<Rule>: Vec<Rule> =
 NumLiteral: Box<Ast> = {
 	r"[0-9]+" => Box::new(Ast::NumLiteral(String::from(<>))),
 }
+StringLiteral: Box<Ast> = {
+	r##""(\\"|[^"])*""## => Box::new(Ast::StringLiteral(String::from(<>))),
+}
 Literal: Box<Ast> = {
 	NumLiteral => <>,
+	StringLiteral => <>,
 }
 
 // variable or function or type names
