@@ -7,13 +7,6 @@ lalrpop_mod!(pub grammar);
 
 fn main() {
 	let txt = std::fs::read_to_string("./input.cp").unwrap();
-	let a = grammar::ExprParser::new().parse(&txt);
-	match a {
-		Ok(ast) => {
-			println!("{:?}",ast);
-		},
-		Err(pe) => {
-			println!("{:?}",pe);
-		},
-	}
+	let a = grammar::ExprParser::new().parse(&txt).unwrap();
+	println!("{:?}",a);
 }

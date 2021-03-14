@@ -70,8 +70,8 @@ Typ: Box<Ast> = {
 }
 
 // function definition
-FunArgsEl: Box<Ast> = {
-	<a:Typ> <b:Id> => Box::new(Ast::FunArgsEl{typ:a,name:b}),
+FunArgsEl: (Box<Ast>, Box<Ast>) = {
+	<a:Typ> <b:Id> => (a,b),
 }
 Fun: Box<Ast> = {
 	"fn" <n:Id> "(" <a:CommaList0<FunArgsEl>> ")" <t:Typ> <b:BraceExpr> => Box::new(Ast::Fun{name:n,args:a,typ:t,body:b}),
@@ -79,8 +79,8 @@ Fun: Box<Ast> = {
 }
 
 // structure definition
-StructDefEl: Box<Ast> = {
-	<a:Typ> <b:Id?> => Box::new(Ast::StructEl{typ:a,name:b}),
+StructDefEl: (Box<Ast>, Option<Box<Ast>>) = {
+	<a:Typ> <b:Id?> => (a,b),
 }
 StructDef: Box<Ast> = {
 	"struct" <n:Id> "{" <e:CommaList0<StructDefEl>> "}" => Box::new(Ast::Struct{name:n,els:e}),

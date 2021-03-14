@@ -61,23 +61,15 @@ pub enum Ast {
 		typ: Box<Ast>,
 		name: Box<Ast>,
 	},
-	FunArgsEl {
-		typ: Box<Ast>,
-		name: Box<Ast>,
-	},
 	Fun {
 		name: Box<Ast>,
-		args: Vec<Box<Ast>>,
+		args: Vec<(Box<Ast>,Box<Ast>)>,
 		typ: Box<Ast>,
 		body: Box<Ast>,
 	},
-	StructEl {
-		typ: Box<Ast>,
-		name: Option<Box<Ast>>,
-	},
 	Struct {
 		name: Box<Ast>,
-		els: Vec<Box<Ast>>,
+		els: Vec<(Box<Ast>,Option<Box<Ast>>)>,
 	},
 
 	// everything

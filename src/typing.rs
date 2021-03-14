@@ -16,9 +16,7 @@ pub fn run(a: Box<Ast>) {
 		Ast::Pointer{typ} => {},
 		Ast::TypDec{id,typ} => {},
 		Ast::Var{typ,name} => {},
-		Ast::FunArgsEl{typ,name} => {},
 		Ast::Fun{name,args,typ,body} => {},
-		Ast::StructEl{typ,name}=>{},
 		Ast::Struct{name,els}=>{},
 		Ast::Expr{body,ret}=>{},
 	}
