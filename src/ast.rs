@@ -51,10 +51,6 @@ pub enum Ast {
 	Reference {
 		typ: Box<Ast>,
 	},
-	TypDec {
-		id: Box<Ast>,
-		typ: Box<Ast>,
-	},
 
 	// name declarations
 	Var {
